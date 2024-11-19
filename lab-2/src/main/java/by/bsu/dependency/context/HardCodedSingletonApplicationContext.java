@@ -7,7 +7,9 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import by.bsu.dependency.Exception.ApplicationContextNotStartedException;
 import by.bsu.dependency.annotation.Bean;
+import by.bsu.dependency.Exception.NoSuchBeanDefinitionException;
 
 
 public class HardCodedSingletonApplicationContext extends AbstractApplicationContext {
@@ -38,12 +40,8 @@ public class HardCodedSingletonApplicationContext extends AbstractApplicationCon
 
     @Override
     public void start() {
+        status = ContextStatus.STARTED;
         beanDefinitions.forEach((beanName, beanClass) -> beans.put(beanName, instantiateBean(beanClass)));
-    }
-
-    @Override
-    public boolean isRunning() {
-        throw new IllegalStateException("not implemented");
     }
 
     /**
@@ -51,6 +49,9 @@ public class HardCodedSingletonApplicationContext extends AbstractApplicationCon
      */
     @Override
     public boolean containsBean(String name) {
+        if (status == ContextStatus.NOT_STARTED)
+            throw new ApplicationContextNotStartedException("");
+
         return beans.containsKey(name);
     }
 
@@ -59,21 +60,39 @@ public class HardCodedSingletonApplicationContext extends AbstractApplicationCon
      */
     @Override
     public Object getBean(String name) {
-        return beans.get(name);
+        if (status == ContextStatus.NOT_STARTED)
+            throw new ApplicationContextNotStartedException("Caused by getBean");
+
+       Object obj = beans.get(name);
+       if (obj == null) {
+           throw new NoSuchBeanDefinitionException(name);
+       }
+       return obj;
     }
 
     @Override
     public <T> T getBean(Class<T> clazz) {
-        throw new IllegalStateException("not implemented");
+        if (status == ContextStatus.NOT_STARTED)
+            throw new ApplicationContextNotStartedException("Caused by getBean");
+
+        Object obj = beans.get(clazz.getAnnotation(Bean.class).name());
+        if (obj == null) {
+            throw new NoSuchBeanDefinitionException(clazz.getName());
+        }
+        return clazz.cast(obj);
     }
 
     @Override
     public boolean isPrototype(String name) {
+        if (!beanDefinitions.containsKey(name))
+            throw new NoSuchBeanDefinitionException(name);
         return false;
     }
 
     @Override
     public boolean isSingleton(String name) {
+        if (!beanDefinitions.containsKey(name))
+            throw new NoSuchBeanDefinitionException(name);
         return true;
     }
 

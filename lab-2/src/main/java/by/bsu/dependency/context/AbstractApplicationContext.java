@@ -7,4 +7,10 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
         STARTED
     }
 
+    protected ContextStatus status = ContextStatus.NOT_STARTED;
+
+    @Override
+    public boolean isRunning() {
+        return status == ContextStatus.STARTED;
+    }
 }
