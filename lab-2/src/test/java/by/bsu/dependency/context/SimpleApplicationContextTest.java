@@ -3,6 +3,9 @@ package by.bsu.dependency.context;
 import by.bsu.dependency.Exception.ApplicationContextNotStartedException;
 import by.bsu.dependency.Exception.NoSuchBeanDefinitionException;
 import by.bsu.dependency.example.*;
+import by.bsu.dependency.example.postConstruct.BeanWithPostConstructMethod;
+import by.bsu.dependency.example.postConstruct.ValueBeanChild;
+import by.bsu.dependency.example.postConstruct.ValueBeanParent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -23,7 +26,10 @@ public class SimpleApplicationContextTest {
                 FirstPrototypeBean.class,
                 SecondPrototypeBean.class,
                 NotAnnotatedBean.class,
-                ContainsNotIncludedBean.class
+                ContainsNotIncludedBean.class,
+                ValueBeanParent.class,
+                ValueBeanChild.class,
+                BeanWithPostConstructMethod.class
         );
     }
 
@@ -54,6 +60,9 @@ public class SimpleApplicationContextTest {
         assertThat(applicationContext.containsBean("FirstBean")).isFalse();
         assertThat(applicationContext.containsBean("notAnnotatedBean")).isTrue();
         assertThat(applicationContext.containsBean("randomName")).isFalse();
+
+        assertThat(applicationContext.containsBean("valueBeanChild")).isTrue();
+        assertThat(applicationContext.containsBean("valueBeanParent")).isTrue();
     }
 
     @Test
@@ -99,6 +108,18 @@ public class SimpleApplicationContextTest {
 
         assertThat(singletonField.get(bean)).isNotNull().isInstanceOf(FirstBean.class);
         assertThat(prototypeField.get(bean)).isNotNull().isInstanceOf(FirstPrototypeBean.class);
+    }
+
+    @Test
+    void testPostConstructDependenciesInjection() {
+        applicationContext.start();
+
+        BeanWithPostConstructMethod bean = applicationContext.getBean(BeanWithPostConstructMethod.class);
+        assertThat(bean).isNotNull();
+        assertThat(bean.valueBeanChild).isNotNull().isInstanceOf(ValueBeanChild.class);
+        assertThat(bean.valueBeanParent).isNotNull().isInstanceOf(ValueBeanParent.class);
+        assertThat(bean.valueBeanChild.getValue()).isEqualTo("child");
+        assertThat(bean.valueBeanParent.getValue()).isEqualTo("parent");
     }
 
     @Test

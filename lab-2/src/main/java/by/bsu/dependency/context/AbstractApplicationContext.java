@@ -1,13 +1,12 @@
 package by.bsu.dependency.context;
 
-import by.bsu.dependency.Exception.ApplicationContextAlreadyStartedException;
-import by.bsu.dependency.Exception.ApplicationContextNotStartedException;
-import by.bsu.dependency.Exception.InvalidInjectionException;
-import by.bsu.dependency.Exception.NoSuchBeanDefinitionException;
+import by.bsu.dependency.Exception.*;
 import by.bsu.dependency.annotation.Bean;
 import by.bsu.dependency.annotation.BeanScope;
 import by.bsu.dependency.annotation.Inject;
+import by.bsu.dependency.annotation.PostConstruct;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 import java.util.function.Function;
@@ -82,16 +81,7 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
         if (!isRunning())
             throw new ApplicationContextNotStartedException("Caused by getBean");
 
-        if (!containsBean(name))
-            throw new NoSuchBeanDefinitionException("Bean " + name + " not found");
-
-        if (isSingleton(name)) {
-            return singletonBeans.get(name);
-        } else {
-            Object prototypeBean = instantiateBean(beanDefinitions.get(name));
-            injectDependencies(prototypeBean);
-            return prototypeBean;
-        }
+        return generateBean(name);
     }
 
     @Override
@@ -120,7 +110,7 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
             return beanClass.getConstructor().newInstance();
         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException |
                  InstantiationException e) {
-            throw new RuntimeException(e);
+            throw new InstantiationBeanException(e.getMessage());
         }
     }
 
@@ -135,32 +125,32 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
         return name;
     }
 
-    protected void injectDependencies(Object bean) {
-        if (bean == null)
-            throw new NullPointerException("Bean is null");
+    private Object generateBean(String beanName) {
+        if (!containsBeanDefinition(beanName))
+            throw new NoSuchBeanDefinitionException("Bean " + beanName + " not found");
 
-        List<Object> injectionBeans = new ArrayList<>();
+        Object bean;
+        if (isSingleton(beanName)) {
+            bean = singletonBeans.get(beanName);
+        } else {
+            bean = instantiateBean(beanDefinitions.get(beanName));
+            injectDependencies(bean);
+        }
+        return bean;
+    }
+
+    protected void injectDependencies(Object bean) {
+
+        injectPostConstructDependencies(bean);
 
         Arrays.stream(bean.getClass().getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(Inject.class))
+                .filter(field -> isNullField(field, bean))
                 .forEach(field -> {
                     var fieldType = field.getType();
                     String fieldBeanName = getBeanName(fieldType);
 
-                    if (!containsBeanDefinition(fieldBeanName)) {
-                        throw new NoSuchBeanDefinitionException(
-                                "Bean " + fieldBeanName + " not found to inject"
-                        );
-                    }
-
-                    Object injectionBean;
-
-                    if (isSingleton(fieldBeanName)) {
-                        injectionBean = singletonBeans.get(fieldBeanName);
-                    } else {
-                        injectionBean = instantiateBean(fieldType);
-                        injectionBeans.add(injectionBean);
-                    }
+                    Object injectionBean = generateBean(fieldBeanName);
 
                     field.setAccessible(true);
                     try {
@@ -169,7 +159,34 @@ public abstract class AbstractApplicationContext implements ApplicationContext {
                         throw new InvalidInjectionException(e.getMessage());
                     }
                 });
+    }
 
-        injectionBeans.forEach(this::injectDependencies);
+    private boolean isNullField(Field field, Object bean) {
+        field.setAccessible(true);
+        boolean result;
+        try {
+            result = (field.get(bean) == null);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+        return result;
+    }
+
+    private void injectPostConstructDependencies(Object bean) {
+        Arrays.stream(bean.getClass().getDeclaredMethods())
+                .filter(method -> method.isAnnotationPresent(PostConstruct.class))
+                .forEach(
+                        method -> {
+                            Object[] arguments = Arrays.stream(method.getParameterTypes())
+                                    .map(clazz -> generateBean(getBeanName(clazz)))
+                                    .toArray();
+                            method.setAccessible(true);
+                            try {
+                                method.invoke(bean, arguments);
+                            } catch (IllegalArgumentException | IllegalAccessException | InvocationTargetException e) {
+                                throw new RuntimeException(e);
+                            }
+                        }
+                );
     }
 }
