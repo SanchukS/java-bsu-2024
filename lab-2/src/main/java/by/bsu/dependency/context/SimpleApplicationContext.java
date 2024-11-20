@@ -1,13 +1,5 @@
 package by.bsu.dependency.context;
 
-import by.bsu.dependency.Exception.ApplicationContextAlreadyStartedException;
-import by.bsu.dependency.Exception.ApplicationContextNotStartedException;
-import by.bsu.dependency.Exception.InvalidInjectionException;
-import by.bsu.dependency.Exception.NoSuchBeanDefinitionException;
-import by.bsu.dependency.annotation.Bean;
-import by.bsu.dependency.annotation.BeanScope;
-import by.bsu.dependency.annotation.Inject;
-
 import java.util.*;
 
 public class SimpleApplicationContext extends AbstractApplicationContext {

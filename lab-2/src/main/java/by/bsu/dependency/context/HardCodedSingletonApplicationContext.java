@@ -3,10 +3,8 @@ package by.bsu.dependency.context;
 import java.util.List;
 
 import by.bsu.dependency.Exception.ApplicationContextAlreadyStartedException;
-import by.bsu.dependency.Exception.ApplicationContextNotStartedException;
 import by.bsu.dependency.Exception.NotSingletonException;
 import by.bsu.dependency.annotation.Bean;
-import by.bsu.dependency.Exception.NoSuchBeanDefinitionException;
 import by.bsu.dependency.annotation.BeanScope;
 
 
