@@ -1,4 +1,4 @@
-package by.bsu.dependency.example.usage.databases;
+package by.bsu.dependency.example.usageExample.databases;
 
 import java.util.List;
 

@@ -1,10 +1,10 @@
-package by.bsu.dependency.example.usage;
+package by.bsu.dependency.example.usageExample;
 
 import by.bsu.dependency.annotation.Bean;
 import by.bsu.dependency.annotation.BeanScope;
 import by.bsu.dependency.annotation.Inject;
 import by.bsu.dependency.annotation.PostConstruct;
-import by.bsu.dependency.example.usage.humanHead.Head;
+import by.bsu.dependency.example.usageExample.humanHead.Head;
 
 @Bean(name="human", scope= BeanScope.PROTOTYPE)
 public class Human {

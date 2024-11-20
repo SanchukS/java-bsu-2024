@@ -1,11 +1,12 @@
-package by.bsu.dependency.example.usage.humanHead;
+package by.bsu.dependency.example.usageExample.humanHead;
 
 import by.bsu.dependency.annotation.Bean;
 import by.bsu.dependency.annotation.BeanScope;
 import by.bsu.dependency.annotation.Inject;
 import by.bsu.dependency.annotation.PostConstruct;
-import by.bsu.dependency.example.usage.Randomizer;
-import by.bsu.dependency.example.usage.exception.NoEarsException;
+import by.bsu.dependency.example.usageExample.Randomizer;
+import by.bsu.dependency.example.usageExample.exception.NoEarsException;
+import lombok.Getter;
 
 @Bean(name="ears", scope= BeanScope.PROTOTYPE)
 public class Ears {
@@ -20,7 +21,7 @@ public class Ears {
         exist = (this.randomizer.nextInt(0, 1) == 1);
     }
 
-    public boolean getEarsExistence() {
+    public boolean getExist() {
         return exist;
     }
 

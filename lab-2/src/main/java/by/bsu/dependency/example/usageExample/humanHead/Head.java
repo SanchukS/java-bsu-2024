@@ -1,4 +1,4 @@
-package by.bsu.dependency.example.usage.humanHead;
+package by.bsu.dependency.example.usageExample.humanHead;
 
 import by.bsu.dependency.annotation.Bean;
 import by.bsu.dependency.annotation.BeanScope;
@@ -39,6 +39,6 @@ public class Head {
         return "Mouth volume: " + mouth.getVolume() +
                 "\nEyes count: " + eyes.getCount() +
                 "\nNose size: " + nose.getSize() +
-                "\nEars " + (ears.getEarsExistence() ? "exist" : "don't exist");
+                "\nEars " + (ears.getExist() ? "exist" : "don't exist");
     }
 }
