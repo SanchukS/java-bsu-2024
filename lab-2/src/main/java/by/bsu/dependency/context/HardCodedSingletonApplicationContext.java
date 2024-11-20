@@ -1,21 +1,16 @@
 package by.bsu.dependency.context;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.List;
 
 import by.bsu.dependency.Exception.ApplicationContextAlreadyStartedException;
 import by.bsu.dependency.Exception.ApplicationContextNotStartedException;
+import by.bsu.dependency.Exception.NotSingletonException;
 import by.bsu.dependency.annotation.Bean;
 import by.bsu.dependency.Exception.NoSuchBeanDefinitionException;
+import by.bsu.dependency.annotation.BeanScope;
 
 
 public class HardCodedSingletonApplicationContext extends AbstractApplicationContext {
-
-    private final Map<String, Class<?>> beanDefinitions;
-    private final Map<String, Object> beans = new HashMap<>();
 
     /**
      * ! Класс существует только для базового примера !
@@ -30,12 +25,17 @@ public class HardCodedSingletonApplicationContext extends AbstractApplicationCon
      * @param beanClasses классы, из которых требуется создать бины
      */
     public HardCodedSingletonApplicationContext(Class<?>... beanClasses) {
-        this.beanDefinitions = Arrays.stream(beanClasses).collect(
-                Collectors.toMap(
-                        beanClass -> beanClass.getAnnotation(Bean.class).name(),
-                        Function.identity()
-                )
-        );
+        super(returnIfSingleton(beanClasses));
+    }
+
+    private static List<Class<?>> returnIfSingleton(Class<?>[] beanClasses) {
+        for (var beanClass : beanClasses) {
+            if (beanClass.isAnnotationPresent(Bean.class) &&
+                    beanClass.getAnnotation(Bean.class).scope() == BeanScope.PROTOTYPE)
+                throw new NotSingletonException("");
+        }
+
+        return List.of(beanClasses);
     }
 
     @Override
@@ -43,66 +43,9 @@ public class HardCodedSingletonApplicationContext extends AbstractApplicationCon
         if (isRunning())
             throw new ApplicationContextAlreadyStartedException(this.getClass().getName());
 
-        beans.clear();
+        singletonBeans.clear();
 
-        beanDefinitions.forEach((beanName, beanClass) -> beans.put(beanName, instantiateBean(beanClass)));
+        beanDefinitions.forEach((beanName, beanClass) -> singletonBeans.put(beanName, instantiateBean(beanClass)));
         status = ContextStatus.STARTED;
-    }
-
-    @Override
-    public boolean containsBeanDefinition(String name) {
-        return beanDefinitions.containsKey(name);
-    }
-
-    /**
-     * В этой реализации отсутствуют проверки статуса контекста (запущен ли он).
-     */
-    @Override
-    public boolean containsBean(String name) {
-        if (!isRunning())
-            throw new ApplicationContextNotStartedException("");
-
-        return containsBeanDefinition(name);
-    }
-
-    @Override
-    public boolean containsBean(Class<?> clazz) {
-        return containsBean(getBeanName(clazz));
-    }
-
-    /**
-     * В этой реализации отсутствуют проверки статуса контекста (запущен ли он) и исключения в случае отсутствия бина
-     */
-    @Override
-    public Object getBean(String name) {
-        if (!isRunning())
-            throw new ApplicationContextNotStartedException("Caused by getBean");
-
-       if (!containsBean(name)) {
-           throw new NoSuchBeanDefinitionException(name);
-       }
-
-       return beans.get(name);
-    }
-
-    @Override
-    public <T> T getBean(Class<T> clazz) {
-        return clazz.cast(getBean(getBeanName(clazz)));
-    }
-
-    @Override
-    public boolean isPrototype(String name) {
-        if (!containsBeanDefinition(name))
-            throw new NoSuchBeanDefinitionException(name);
-
-        return false;
-    }
-
-    @Override
-    public boolean isSingleton(String name) {
-        if (!containsBeanDefinition(name))
-            throw new NoSuchBeanDefinitionException(name);
-
-        return true;
     }
 }

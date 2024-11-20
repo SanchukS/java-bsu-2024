@@ -23,7 +23,7 @@ public class SimpleApplicationContextTest {
                 FirstPrototypeBean.class,
                 SecondPrototypeBean.class,
                 NotAnnotatedBean.class,
-                ContainesNotIncludedBean.class
+                ContainsNotIncludedBean.class
         );
     }
 
@@ -111,7 +111,7 @@ public class SimpleApplicationContextTest {
         );
         assertThrows(
                 NoSuchBeanDefinitionException.class,
-                () -> applicationContext.getBean(ContainesNotIncludedBean.class)
+                () -> applicationContext.getBean(ContainsNotIncludedBean.class)
         );
     }
 
