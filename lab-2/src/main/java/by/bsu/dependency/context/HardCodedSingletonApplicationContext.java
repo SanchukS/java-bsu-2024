@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import by.bsu.dependency.Exception.ApplicationContextAlreadyStartedException;
 import by.bsu.dependency.Exception.ApplicationContextNotStartedException;
 import by.bsu.dependency.annotation.Bean;
 import by.bsu.dependency.Exception.NoSuchBeanDefinitionException;
@@ -40,8 +41,18 @@ public class HardCodedSingletonApplicationContext extends AbstractApplicationCon
 
     @Override
     public void start() {
-        status = ContextStatus.STARTED;
+        if (isRunning())
+            throw new ApplicationContextAlreadyStartedException(this.getClass().getName());
+
+        beans.clear();
+
         beanDefinitions.forEach((beanName, beanClass) -> beans.put(beanName, instantiateBean(beanClass)));
+        status = ContextStatus.STARTED;
+    }
+
+    @Override
+    public boolean containsBeanDefinition(String name) {
+        return beanDefinitions.containsKey(name);
     }
 
     /**
@@ -49,10 +60,15 @@ public class HardCodedSingletonApplicationContext extends AbstractApplicationCon
      */
     @Override
     public boolean containsBean(String name) {
-        if (status == ContextStatus.NOT_STARTED)
+        if (!isRunning())
             throw new ApplicationContextNotStartedException("");
 
-        return beans.containsKey(name);
+        return containsBeanDefinition(name);
+    }
+
+    @Override
+    public boolean containsBean(Class<?> clazz) {
+        return containsBean(getBeanName(clazz));
     }
 
     /**
@@ -60,48 +76,34 @@ public class HardCodedSingletonApplicationContext extends AbstractApplicationCon
      */
     @Override
     public Object getBean(String name) {
-        if (status == ContextStatus.NOT_STARTED)
+        if (!isRunning())
             throw new ApplicationContextNotStartedException("Caused by getBean");
 
-       Object obj = beans.get(name);
-       if (obj == null) {
+       if (!containsBean(name)) {
            throw new NoSuchBeanDefinitionException(name);
        }
-       return obj;
+
+       return beans.get(name);
     }
 
     @Override
     public <T> T getBean(Class<T> clazz) {
-        if (status == ContextStatus.NOT_STARTED)
-            throw new ApplicationContextNotStartedException("Caused by getBean");
-
-        Object obj = beans.get(clazz.getAnnotation(Bean.class).name());
-        if (obj == null) {
-            throw new NoSuchBeanDefinitionException(clazz.getName());
-        }
-        return clazz.cast(obj);
+        return clazz.cast(getBean(getBeanName(clazz)));
     }
 
     @Override
     public boolean isPrototype(String name) {
-        if (!beanDefinitions.containsKey(name))
+        if (!containsBeanDefinition(name))
             throw new NoSuchBeanDefinitionException(name);
+
         return false;
     }
 
     @Override
     public boolean isSingleton(String name) {
-        if (!beanDefinitions.containsKey(name))
+        if (!containsBeanDefinition(name))
             throw new NoSuchBeanDefinitionException(name);
-        return true;
-    }
 
-    private <T> T instantiateBean(Class<T> beanClass) {
-        try {
-            return beanClass.getConstructor().newInstance();
-        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException |
-                 InstantiationException e) {
-            throw new RuntimeException(e);
-        }
+        return true;
     }
 }

@@ -26,6 +26,10 @@ public interface ApplicationContext {
      */
     boolean containsBean(String name);
 
+    boolean containsBean(Class<?> clazz);
+
+    boolean containsBeanDefinition(String name);
+
     /**
      * Возвращает инстанс бина по имени (идентификатору). Для {@code SINGLETON} бинов каждый вызов должен возвращать
      * один и тот же объект, а для {@code PROTOTYPE} - каждый раз новый объект.

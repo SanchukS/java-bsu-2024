@@ -31,6 +31,16 @@ public class AutoScanApplicationContext extends AbstractApplicationContext {
     }
 
     @Override
+    public boolean containsBean(Class<?> clazz) {
+        throw new IllegalStateException("not implemented");
+    }
+
+    @Override
+    public boolean containsBeanDefinition(String name) {
+        throw new IllegalStateException("not implemented");
+    }
+
+    @Override
     public Object getBean(String name) {
         throw new IllegalStateException("not implemented");
     }

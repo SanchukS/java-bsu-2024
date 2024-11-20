@@ -1,24 +1,19 @@
 package by.bsu.dependency.context;
 
+import by.bsu.dependency.Exception.ApplicationContextAlreadyStartedException;
 import by.bsu.dependency.Exception.ApplicationContextNotStartedException;
+import by.bsu.dependency.Exception.InvalidInjectionException;
 import by.bsu.dependency.Exception.NoSuchBeanDefinitionException;
 import by.bsu.dependency.annotation.Bean;
 import by.bsu.dependency.annotation.BeanScope;
 import by.bsu.dependency.annotation.Inject;
 
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class SimpleApplicationContext extends AbstractApplicationContext {
-    private final Map<String, Class<?>> singletonBeanDefinitions;
-    private final Map<String, Class<?>> prototypeBeanDefinitions;
+    private final Map<String, Class<?>> beanDefinitions;
     private final Map<String, Object> singletonBeans = new HashMap<>();
 
     /**
@@ -32,28 +27,11 @@ public class SimpleApplicationContext extends AbstractApplicationContext {
      * @param beanClasses классы, из которых требуется создать бины
      */
     public SimpleApplicationContext(Class<?>... beanClasses) {
-        prototypeBeanDefinitions = Arrays.stream(beanClasses).filter(
-                beanClass -> {
-                    return beanClass.isAnnotationPresent(Bean.class) &&
-                            beanClass.getAnnotation(Bean.class).scope() == BeanScope.PROTOTYPE;
-                }
-        ).collect(
-                Collectors.toMap(
+        beanDefinitions = Arrays.stream(beanClasses)
+                .collect(Collectors.toMap(
                         this::getBeanName,
-                        Function.identity()
-                )
-        );
-        singletonBeanDefinitions = Arrays.stream(beanClasses).filter(
-                beanClass -> {
-                    return !beanClass.isAnnotationPresent(Bean.class) ||
-                            beanClass.getAnnotation(Bean.class).scope() == BeanScope.SINGLETON;
-                }
-        ).collect(
-                Collectors.toMap(
-                        this::getBeanName,
-                        Function.identity()
-                )
-        );
+                        Function.identity())
+                );
     }
 
     /**
@@ -61,78 +39,115 @@ public class SimpleApplicationContext extends AbstractApplicationContext {
      */
     @Override
     public void start() {
-        status = ContextStatus.STARTED; // В начале или в конце?
-        singletonBeanDefinitions.forEach(
-                (name, beanClass) -> singletonBeans.put(name, instantiateBean(beanClass))
+        if (isRunning())
+            throw new ApplicationContextAlreadyStartedException("");
+
+        singletonBeans.clear();
+
+        beanDefinitions.forEach(
+                (name, beanClass) -> {
+                    if (isSingleton(name))
+                        singletonBeans.put(name, instantiateBean(beanClass));
+                }
         );
-        // injectDependencies
+
+        singletonBeans.values().forEach(this::injectDependencies);
+
+        status = ContextStatus.STARTED;
+    }
+
+    @Override
+    public boolean containsBeanDefinition(String name) {
+        return beanDefinitions.containsKey(name);
     }
 
     @Override
     public boolean containsBean(String name) {
-        if (status == ContextStatus.NOT_STARTED)
+        if (!isRunning())
             throw new ApplicationContextNotStartedException("");
 
-        return singletonBeans.containsKey(name) ||
-                prototypeBeanDefinitions.containsKey(name);
+        return containsBeanDefinition(name);
+    }
+
+    @Override
+    public boolean containsBean(Class<?> clazz) {
+        return containsBean(getBeanName(clazz));
     }
 
     @Override
     public Object getBean(String name) {
-        if (singletonBeans.containsKey(name)) {
+        if (!isRunning())
+            throw new ApplicationContextNotStartedException("Caused by getBean");
+
+        if (!containsBean(name))
+            throw new NoSuchBeanDefinitionException("Bean " + name + " not found");
+
+        if (isSingleton(name)) {
             return singletonBeans.get(name);
-        } else if (prototypeBeanDefinitions.containsKey(name)) {
-            Object prototypeBean = instantiateBean(prototypeBeanDefinitions.get(name));
+        } else {
+            Object prototypeBean = instantiateBean(beanDefinitions.get(name));
             injectDependencies(prototypeBean);
             return prototypeBean;
         }
-        throw new NoSuchBeanDefinitionException("Bean " + name + " not found");
     }
 
     @Override
     public <T> T getBean(Class<T> clazz) {
-        return getBean(getBeanName(clazz));
+        return clazz.cast(getBean(getBeanName(clazz)));
     }
 
     @Override
     public boolean isPrototype(String name) {
-        return prototypeBeanDefinitions.containsKey(name);
+        if (!containsBeanDefinition(name)) {
+            throw new NoSuchBeanDefinitionException("Bean " + name + " not found");
+        }
+
+        var beanClass = beanDefinitions.get(name);
+        return beanClass.isAnnotationPresent(Bean.class) &&
+                beanClass.getAnnotation(Bean.class).scope() == BeanScope.PROTOTYPE;
     }
 
     @Override
     public boolean isSingleton(String name) {
-        return singletonBeanDefinitions.containsKey(name);
+        return !isPrototype(name);
     }
 
-    private <T> T instantiateBean(Class<T> beanClass) {
-        try {
-            return beanClass.getConstructor().newInstance();
-        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException |
-                 InstantiationException e) {
-            throw new RuntimeException(e);
-        }
-    }
+    // А если принимать Object?
+    private void injectDependencies(Object bean) {
+        if (bean == null)
+            throw new NullPointerException("Bean is null");
 
-    private <T> void injectDependencies(T bean) {
-        List<Field> injectFields = Arrays.stream(bean.getClass().getFields())
+        List<Object> injectionBeans = new ArrayList<>();
+
+        Arrays.stream(bean.getClass().getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(Inject.class))
-                .toList();
-        injectFields.stream()
                 .forEach(field -> {
-                    field.setAccessible(true);
                     var fieldType = field.getType();
+                    String fieldBeanName = getBeanName(fieldType);
 
+                    if (!containsBeanDefinition(fieldBeanName)) {
+                        throw new NoSuchBeanDefinitionException(
+                                "Bean " + fieldBeanName + " not found to inject"
+                        );
+                    }
+
+                    Object injectionBean;
+
+                    if (isSingleton(fieldBeanName)) {
+                        injectionBean = singletonBeans.get(fieldBeanName);
+                    } else {
+                        injectionBean = instantiateBean(fieldType);
+                        injectionBeans.add(injectionBean);
+                    }
+
+                    field.setAccessible(true);
+                    try {
+                        field.set(bean, injectionBean);
+                    } catch (IllegalAccessException e) {
+                        throw new InvalidInjectionException(e.getMessage());
+                    }
                 });
-    }
 
-    private <T> String getBeanName(Class<T> beanClass) {
-        String name;
-        if (beanClass.isAnnotationPresent(Bean.class)) {
-            name = beanClass.getAnnotation(Bean.class).name();
-        } else {
-            name = beanClass.getSimpleName();
-            name = name.substring(0, 1).toLowerCase() + name.substring(1);
-        }
-        return name;
+        injectionBeans.forEach(this::injectDependencies);
     }
 }
