@@ -1,6 +1,8 @@
 package by.bsu.dependency.context;
 
 import by.bsu.dependency.example.*;
+import by.bsu.dependency.example.postConstruct.BeanWithPostConstructMethod;
+import by.bsu.dependency.example.postConstruct.ValueBeanParent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -24,6 +26,9 @@ public class AutoScanApplicationContextTest {
         assertThat(context.containsBean(FirstPrototypeBean.class)).isTrue();
         assertThat(context.containsBean(SecondPrototypeBean.class)).isTrue();
         assertThat(context.containsBean(ContainsNotIncludedBean.class)).isTrue();
+        assertThat(context.containsBean(ValueBeanParent.class)).isTrue();
+        assertThat(context.containsBean(ValueBeanParent.class)).isTrue();
+        assertThat(context.containsBean(BeanWithPostConstructMethod.class)).isTrue();
     }
 
     @Test
