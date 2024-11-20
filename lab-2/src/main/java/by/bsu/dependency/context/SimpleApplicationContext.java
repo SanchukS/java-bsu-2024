@@ -1,6 +1,6 @@
 package by.bsu.dependency.context;
 
-import java.util.*;
+import java.util.List;
 
 public class SimpleApplicationContext extends AbstractApplicationContext {
     /**

@@ -1,11 +1,11 @@
 package by.bsu.dependency.context;
 
-import java.util.List;
-
 import by.bsu.dependency.Exception.ApplicationContextAlreadyStartedException;
 import by.bsu.dependency.Exception.NotSingletonException;
 import by.bsu.dependency.annotation.Bean;
 import by.bsu.dependency.annotation.BeanScope;
+
+import java.util.List;
 
 
 public class HardCodedSingletonApplicationContext extends AbstractApplicationContext {

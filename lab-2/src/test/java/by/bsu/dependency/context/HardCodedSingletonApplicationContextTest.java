@@ -1,9 +1,9 @@
 package by.bsu.dependency.context;
 
-import by.bsu.dependency.example.FirstBean;
-import by.bsu.dependency.example.OtherBean;
 import by.bsu.dependency.Exception.ApplicationContextNotStartedException;
 import by.bsu.dependency.Exception.NoSuchBeanDefinitionException;
+import by.bsu.dependency.example.FirstBean;
+import by.bsu.dependency.example.OtherBean;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
